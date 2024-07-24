@@ -1,0 +1,14 @@
+{
+  "name": "distinction-dev-exercise-1",
+  "version": "1.0.0",
+  "description": "Distinction Dev Technical Exercise - 1",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "Dhrumit Patel",
+  "license": "ISC",
+  "devDependencies": {
+    "serverless-s3-sync": "^3.3.0"
+  }
+}

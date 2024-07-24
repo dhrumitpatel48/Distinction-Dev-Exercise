@@ -1,0 +1,96 @@
+# "org" ensures this Service is used with the correct Serverless Framework Access Key.
+org: dhrumit
+service: s3-static-website-with-cloudfront
+
+custom:
+    region: us-east-1
+    site:
+      bucketName: s3-static-website-with-cloudfront-distinction-dev
+    s3Sync:
+        - bucketName: ${self:custom.site.bucketName}
+          localDir: static-application
+          acl: public-read
+
+provider:
+  name: aws
+  runtime: nodejs18.x
+  region: ${self:custom.region}
+
+plugins:
+    - serverless-s3-sync
+
+resources:
+    Resources:
+      StaticApplicationBucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: ${self:custom.site.bucketName}
+            OwnershipControls:
+              Rules:
+                - ObjectOwnership: BucketOwnerEnforced
+            PublicAccessBlockConfiguration:
+              BlockPublicAcls: true
+              BlockPublicPolicy: true
+              IgnorePublicAcls: true
+              RestrictPublicBuckets: true    
+            AccessControl: PublicRead
+            WebsiteConfiguration:
+              IndexDocument: index.html
+              ErrorDocument: index.html
+
+      # policies for S3 Bucket
+      S3AccessPolicy:
+            DependsOn:
+              - StaticApplicationBucket
+            Type: AWS::S3::BucketPolicy
+            Properties:
+                Bucket:
+                    Ref: StaticApplicationBucket
+                PolicyDocument:
+                    Statement:
+                        - Sid: PublicReadGetObject
+                          Effect: Allow
+                          Principal: '*'
+                          Action:
+                              - s3:GetObject
+                              - s3:ListBucket
+                          Resource:
+                            - arn:aws:s3:::${self:custom.site.bucketName}/*
+                            - arn:aws:s3:::${self:custom.site.bucketName}  
+      CloudFrontDistribution:
+            DependsOn:
+              - StaticApplicationBucket
+              - S3AccessPolicy
+            Type: AWS::CloudFront::Distribution
+            Properties:
+                DistributionConfig:
+                    Origins:
+                        - DomainName: ${self:custom.site.bucketName}.s3-website-${self:custom.region}.amazonaws.com
+                          Id: s3-static-website-with-cloudfront
+                          CustomOriginConfig:
+                              HTTPPort: 80
+                              HTTPSPort: 443
+                              OriginProtocolPolicy: https-only
+                    Enabled: 'true'
+                    DefaultRootObject: index.html
+                    CustomErrorResponses:
+                        - ErrorCode: 404
+                          ResponseCode: 200
+                          ResponsePagePath: /index.html
+                    DefaultCacheBehavior:
+                        AllowedMethods:
+                            - DELETE
+                            - GET
+                            - HEAD
+                            - OPTIONS
+                            - PATCH
+                            - POST
+                            - PUT
+                        TargetOriginId: s3-static-website-with-cloudfront
+                        ForwardedValues:
+                            QueryString: 'false'
+                            Cookies:
+                                Forward: none
+                        ViewerProtocolPolicy: redirect-to-https
+                    ViewerCertificate:
+                        CloudFrontDefaultCertificate: true                   
